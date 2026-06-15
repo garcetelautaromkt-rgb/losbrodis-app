@@ -21,7 +21,6 @@ const HORARIOS_DEFAULT = [
   { abierto: true,  texto: "7:30 – 13:00 / 16:00 – 21:00" },
   { abierto: true,  texto: "7:30 – 13:00 / 16:00 – 21:00" },
   { abierto: true,  texto: "7:30 – 13:00 / 16:00 – 21:00" },
-  { abierto: true,  texto: "8:00 – 13:00" },
 ];
 
 const getDayName = () => DIAS_SEMANA[new Date().getDay()];
