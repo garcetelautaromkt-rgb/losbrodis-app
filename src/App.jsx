@@ -24,7 +24,6 @@ const HORARIOS_DEFAULT = [
   { abierto: true,  texto: "8:00 – 13:00" },
 ];
 
-
 const getDayName = () => DIAS_SEMANA[new Date().getDay()];
 
 // Formato YYYY-MM-DD en horario local (evita bugs de zona horaria con toISOString)
@@ -59,13 +58,12 @@ const getWeekLabel = (dateStr) => {
   return `${m.charAt(0).toUpperCase() + m.slice(1)} - Semana ${Math.ceil(d.getDate() / 7)}`;
 };
 
-const getDiasHabiles = (horarios) => {
+const getDiasHabiles = (horarios, excepciones) => {
   const now = new Date(); const y = now.getFullYear(); const mo = now.getMonth();
   const total = new Date(y, mo + 1, 0).getDate();
   let h = 0;
   for (let d = 1; d <= total; d++) {
-    const dia = new Date(y, mo, d).getDay();
-    if (horarios[dia]?.abierto) h++;
+    if (getEstadoDia(new Date(y, mo, d), horarios, excepciones).abierto) h++;
   }
   return h;
 };
@@ -173,6 +171,10 @@ export default function App() {
       return (saved && saved.length === 7) ? saved : HORARIOS_DEFAULT;
     } catch { return HORARIOS_DEFAULT; }
   });
+  const [excepciones, setExcepciones] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("lb5_excepciones") || "{}"); } catch { return {}; }
+  });
+  const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [editSheets, setEditSheets] = useState(false);
   const [linkTemp, setLinkTemp] = useState("");
   const [linkError, setLinkError] = useState("");
@@ -193,6 +195,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem("lb5_cierres", JSON.stringify(cierres)); }, [cierres]);
   useEffect(() => { localStorage.setItem("lb5_formconfig", JSON.stringify(formConfig)); }, [formConfig]);
   useEffect(() => { localStorage.setItem("lb5_horarios", JSON.stringify(horarios)); }, [horarios]);
+  useEffect(() => { localStorage.setItem("lb5_excepciones", JSON.stringify(excepciones)); }, [excepciones]);
 
   // Stock calculado
   const stockActual = {};
@@ -205,7 +208,7 @@ export default function App() {
   // PE desde gastos fijos
   const gastosFijos = gastos.filter(g => g.esFijo);
   const totalFijos = gastosFijos.reduce((a, b) => a + b.monto, 0);
-  const diasHabiles = getDiasHabiles(horarios);
+  const diasHabiles = getDiasHabiles(horarios, excepciones);
   const peDiario = diasHabiles > 0 ? Math.ceil(totalFijos / diasHabiles) : 0;
 
   // Dashboard hoy
@@ -734,7 +737,91 @@ export default function App() {
       {/* ── CONFIGURACIÓN ── */}
       {tab === "Configuración" && (
         <div style={{ padding: isMobile ? 16 : 28 }}>
-          <div style={S.section}>Días y horarios de atención</div>
+
+          {/* Calendario de excepciones */}
+          <div style={S.section}>Calendario del mes</div>
+          <div style={{ fontSize: 12, color: C.muted, marginBottom: 14, lineHeight: 1.6 }}>
+            Tocá un día para marcarlo como excepción: si normalmente está cerrado lo marca como trabajado, y si normalmente abre lo marca como cerrado (feriado, falta, etc). Volvé a tocarlo para sacar la excepción.
+          </div>
+
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, marginBottom: 18 }}>
+            {/* Navegación de mes */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <button onClick={() => setCalMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, color: C.muted, fontSize: 14, padding: "6px 12px", cursor: "pointer" }}>‹</button>
+              <div style={{ fontSize: 14, fontWeight: 700, textTransform: "capitalize" }}>
+                {calMonth.toLocaleString("es-AR", { month: "long", year: "numeric" })}
+              </div>
+              <button onClick={() => setCalMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, color: C.muted, fontSize: 14, padding: "6px 12px", cursor: "pointer" }}>›</button>
+            </div>
+
+            {/* Encabezado días de semana (Lun a Dom) */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 6 }}>
+              {["L","M","M","J","V","S","D"].map((d, i) => (
+                <div key={i} style={{ textAlign: "center", fontSize: 10, color: C.dim, fontWeight: 700 }}>{d}</div>
+              ))}
+            </div>
+
+            {/* Grilla de días */}
+            {(() => {
+              const year = calMonth.getFullYear();
+              const month = calMonth.getMonth();
+              const totalDias = new Date(year, month + 1, 0).getDate();
+              const primerDiaSemana = new Date(year, month, 1).getDay(); // 0=domingo
+              const offset = (primerDiaSemana + 6) % 7; // convertir a que la semana arranque en lunes
+              const celdas = [];
+              for (let i = 0; i < offset; i++) celdas.push(null);
+              for (let d = 1; d <= totalDias; d++) celdas.push(d);
+
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
+                  {celdas.map((d, i) => {
+                    if (d === null) return <div key={i} />;
+                    const date = new Date(year, month, d);
+                    const key = fmtDate(date);
+                    const estado = getEstadoDia(date, horarios, excepciones);
+                    const esExcepcion = key in excepciones;
+                    const esHoy = key === fmtDate(new Date());
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => setExcepciones(ex => {
+                          const baseAbierto = horarios[date.getDay()]?.abierto;
+                          const next = { ...ex };
+                          if (key in next) delete next[key];
+                          else next[key] = !baseAbierto;
+                          return next;
+                        })}
+                        style={{
+                          aspectRatio: "1",
+                          border: esHoy ? `1px solid ${C.gold}` : `1px solid ${esExcepcion ? (estado.abierto ? C.green : C.red) + "88" : C.border}`,
+                          borderRadius: 8,
+                          background: estado.abierto ? C.greenDim : C.redDim,
+                          color: C.text,
+                          fontSize: 12,
+                          fontWeight: esExcepcion ? 800 : 400,
+                          cursor: "pointer",
+                          position: "relative",
+                          display: "flex", alignItems: "center", justifyContent: "center"
+                        }}>
+                        {d}
+                        {esExcepcion && <span style={{ position: "absolute", top: 2, right: 3, fontSize: 8 }}>★</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {/* Leyenda */}
+            <div style={{ display: "flex", gap: 14, marginTop: 14, fontSize: 11, color: C.dim, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 4, background: C.greenDim, border: `1px solid ${C.green}55` }} /> Trabaja</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 4, background: C.redDim, border: `1px solid ${C.red}55` }} /> Cerrado</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ fontSize: 10 }}>★</span> Excepción</div>
+            </div>
+          </div>
+
+          {/* Configuración semanal */}
+          <div style={S.section}>Días y horarios habituales</div>
           <div style={{ fontSize: 12, color: C.muted, marginBottom: 16, lineHeight: 1.6 }}>
             Marcá qué días abre el local y el horario de cada uno. Esto se usa para calcular los días hábiles del mes y el punto de equilibrio diario.
           </div>
@@ -829,7 +916,7 @@ export default function App() {
         <div style={{ fontSize: 9, letterSpacing: 3, color: C.gold + "88", textTransform: "uppercase", marginBottom: 3 }}>Panel de gestión</div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.5 }}>Los Brodis</div>
-          <div style={{ fontSize: 11, color: C.dim }}>{getDayName()} · {getHorario(horarios) || "Cerrado"}</div>
+          <div style={{ fontSize: 11, color: C.dim }}>{getDayName()} · {getHorario(horarios, excepciones) || "Cerrado"}</div>
         </div>
       </div>
 
@@ -860,7 +947,7 @@ export default function App() {
           <div style={{ fontSize: 9, letterSpacing: 3, color: C.gold + "88", textTransform: "uppercase", marginBottom: 6 }}>Panel de gestión</div>
           <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.5, marginBottom: 4 }}>Los Brodis</div>
           <div style={{ fontSize: 11, color: C.dim }}>{getDayName()}</div>
-          <div style={{ fontSize: 11, color: C.dim }}>{getHorario(horarios) || "Cerrado hoy"}</div>
+          <div style={{ fontSize: 11, color: C.dim }}>{getHorario(horarios, excepciones) || "Cerrado hoy"}</div>
         </div>
 
         <nav style={{ flex: 1, padding: "16px 12px" }}>
