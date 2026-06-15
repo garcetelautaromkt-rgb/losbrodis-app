@@ -1,10 +1,24 @@
 import { useState, useEffect } from "react";
 
 const TURNOS = ["Mañana", "Tarde"];
-const CATEGORIAS_GASTO = ["Insumos", "Alquiler", "Servicios", "Limpieza", "Otros"];
 const METODOS_PAGO = ["Efectivo", "Transferencia"];
 const MODALIDADES_VENTA = ["Unidad", "Media docena (6)", "Docena (12)"];
 const MODALIDAD_MULT = { "Unidad": 1, "Media docena (6)": 6, "Docena (12)": 12 };
+
+// ── Lista predeterminada de gastos ──────────────────────────
+const TIPOS_GASTO = [
+  { label: "Materia prima",               observacion: true  },
+  { label: "Mercaderías (Reventa)",        observacion: true  },
+  { label: "Delivery",                     observacion: true  },
+  { label: "Impuestos (IVA, municipio)",   observacion: true  },
+  { label: "Apps",                         observacion: true  },
+  { label: "Servicios",                    observacion: true  },
+  { label: "Alquiler",                     observacion: false },
+  { label: "Deudas",                       observacion: true  },
+  { label: "Marketing",                    observacion: true  },
+  { label: "Retiro Aima",                  observacion: false },
+  { label: "Retiro Belén",                 observacion: false },
+];
 
 const formatARS = (n) =>
   new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
@@ -13,7 +27,6 @@ const today = () => new Date().toISOString().split("T")[0];
 
 const DIAS_SEMANA = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
 
-// Configuración de horarios por defecto (índice 0 = Domingo ... 6 = Sábado)
 const HORARIOS_DEFAULT = [
   { abierto: false, texto: "" },
   { abierto: true,  texto: "7:30 – 13:00 / 16:00 – 21:00" },
@@ -26,7 +39,6 @@ const HORARIOS_DEFAULT = [
 
 const getDayName = () => DIAS_SEMANA[new Date().getDay()];
 
-// Formato YYYY-MM-DD en horario local (evita bugs de zona horaria con toISOString)
 const fmtDate = (d) => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -34,8 +46,6 @@ const fmtDate = (d) => {
   return `${y}-${m}-${dd}`;
 };
 
-// Estado real de un día: revisa primero si hay una excepción puntual,
-// si no, usa la configuración semanal por defecto
 const getEstadoDia = (date, horarios, excepciones) => {
   const key = fmtDate(date);
   const base = horarios[date.getDay()] || { abierto: false, texto: "" };
@@ -48,8 +58,7 @@ const getEstadoDia = (date, horarios, excepciones) => {
 
 const getHorario = (horarios, excepciones) => {
   const estado = getEstadoDia(new Date(), horarios, excepciones);
-  if (!estado.abierto) return null;
-  return estado.texto || null;
+  return estado.abierto ? (estado.texto || null) : null;
 };
 
 const getWeekLabel = (dateStr) => {
@@ -77,36 +86,23 @@ const TABS = [
   { id: "Configuración", icon: "⚙️", label: "Config."  },
 ];
 
-// Marcadores únicos para detectar cada campo en el link de Google Forms
 const MARKERS = {
-  fecha:          "MARCA_FECHA_01",
-  turno:          "MARCA_TURNO_02",
-  efectivo:       "MARCA_EFECTIVO_03",
-  transferencia:  "MARCA_TRANSFER_04",
-  gastoEfectivo:  "MARCA_GASTOEF_05",
-  efectivoNeto:   "MARCA_NETO_06",
-  totalVentasDia: "MARCA_VENTASDIA_07",
-  totalGastosDia: "MARCA_GASTOSDIA_08",
-  gananciaDia:    "MARCA_GANANCIA_09",
-  semana:         "MARCA_SEMANA_10",
-  peDiario:       "MARCA_PEDIARIO_11",
+  fecha: "MARCA_FECHA_01", turno: "MARCA_TURNO_02", efectivo: "MARCA_EFECTIVO_03",
+  transferencia: "MARCA_TRANSFER_04", gastoEfectivo: "MARCA_GASTOEF_05",
+  efectivoNeto: "MARCA_NETO_06", totalVentasDia: "MARCA_VENTASDIA_07",
+  totalGastosDia: "MARCA_GASTOSDIA_08", gananciaDia: "MARCA_GANANCIA_09",
+  semana: "MARCA_SEMANA_10", peDiario: "MARCA_PEDIARIO_11",
 };
 
 const CAMPOS_FORM = [
-  { key: "fecha",          label: "Fecha" },
-  { key: "turno",          label: "Turno" },
-  { key: "efectivo",       label: "Efectivo cobrado" },
-  { key: "transferencia",  label: "Transferencias" },
-  { key: "gastoEfectivo",  label: "Gastos en efectivo" },
-  { key: "efectivoNeto",   label: "Efectivo en caja" },
-  { key: "totalVentasDia", label: "Total ventas del dia" },
-  { key: "totalGastosDia", label: "Total gastos del dia" },
-  { key: "gananciaDia",    label: "Ganancia del dia" },
-  { key: "semana",         label: "Semana" },
-  { key: "peDiario",       label: "PE diario" },
+  { key: "fecha", label: "Fecha" }, { key: "turno", label: "Turno" },
+  { key: "efectivo", label: "Efectivo cobrado" }, { key: "transferencia", label: "Transferencias" },
+  { key: "gastoEfectivo", label: "Gastos en efectivo" }, { key: "efectivoNeto", label: "Efectivo en caja" },
+  { key: "totalVentasDia", label: "Total ventas del dia" }, { key: "totalGastosDia", label: "Total gastos del dia" },
+  { key: "gananciaDia", label: "Ganancia del dia" }, { key: "semana", label: "Semana" },
+  { key: "peDiario", label: "PE diario" },
 ];
 
-// Parsea un link "pre-llenado" de Google Forms y extrae form ID + entry IDs
 const parseFormLink = (url) => {
   try {
     const u = new URL(url.trim());
@@ -120,9 +116,7 @@ const parseFormLink = (url) => {
       if (fieldKey) entries[fieldKey] = key;
     }
     return { formId, entries };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 };
 
 const C = {
@@ -138,7 +132,7 @@ const C = {
 const S = {
   label: { display: "block", fontSize: 11, color: C.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 },
   input: { width: "100%", background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 8, padding: "11px 13px", color: C.text, fontSize: 14, boxSizing: "border-box", outline: "none", transition: "border-color 0.2s" },
-  btnPrimary: { width: "100%", background: C.gold, border: "none", borderRadius: 10, padding: "14px 0", color: "#0f0f0f", fontSize: 15, fontWeight: 700, cursor: "pointer", letterSpacing: 0.3, transition: "opacity 0.2s" },
+  btnPrimary: { width: "100%", background: C.gold, border: "none", borderRadius: 10, padding: "14px 0", color: "#0f0f0f", fontSize: 15, fontWeight: 700, cursor: "pointer", letterSpacing: 0.3 },
   btnDanger: { width: "100%", background: "#7a2020", border: "none", borderRadius: 10, padding: "14px 0", color: C.text, fontSize: 15, fontWeight: 700, cursor: "pointer" },
   btnGhost: { flex: 1, padding: "12px 0", border: `1px solid ${C.border}`, borderRadius: 10, background: "none", color: C.muted, fontSize: 14, cursor: "pointer" },
   card: (bg, accent) => ({ background: bg, border: `1px solid ${accent}33`, borderRadius: 12, padding: 16 }),
@@ -162,18 +156,9 @@ export default function App() {
   const [gastos,  setGastos]  = useState(() => load("lb5_gastos",  "[]"));
   const [stock,   setStock]   = useState(() => load("lb5_stock",   "[]"));
   const [cierres, setCierres] = useState(() => load("lb5_cierres", "[]"));
-  const [formConfig, setFormConfig] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("lb5_formconfig") || "null"); } catch { return null; }
-  });
-  const [horarios, setHorarios] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem("lb5_horarios") || "null");
-      return (saved && saved.length === 7) ? saved : HORARIOS_DEFAULT;
-    } catch { return HORARIOS_DEFAULT; }
-  });
-  const [excepciones, setExcepciones] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("lb5_excepciones") || "{}"); } catch { return {}; }
-  });
+  const [formConfig, setFormConfig] = useState(() => { try { return JSON.parse(localStorage.getItem("lb5_formconfig") || "null"); } catch { return null; } });
+  const [horarios, setHorarios] = useState(() => { try { const s = JSON.parse(localStorage.getItem("lb5_horarios") || "null"); return (s && s.length === 7) ? s : HORARIOS_DEFAULT; } catch { return HORARIOS_DEFAULT; } });
+  const [excepciones, setExcepciones] = useState(() => { try { return JSON.parse(localStorage.getItem("lb5_excepciones") || "{}"); } catch { return {}; } });
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [editSheets, setEditSheets] = useState(false);
   const [linkTemp, setLinkTemp] = useState("");
@@ -185,8 +170,9 @@ export default function App() {
   const [ok, setOk] = useState(""); const showOk = m => { setOk(m); setTimeout(() => setOk(""), 2200); };
   const [err, setErr] = useState(""); const showErr = m => { setErr(m); setTimeout(() => setErr(""), 2500); };
 
+  // Gasto state con tipo predeterminado y observación
   const [venta, setVenta] = useState({ fecha: today(), turno: "Mañana", producto: "", modalidad: "Unidad", cantidad: 1, precioUnidad: "", metodoPago: "Efectivo" });
-  const [gasto, setGasto] = useState({ fecha: today(), categoria: "Alquiler", descripcion: "", monto: "", metodoPago: "Efectivo", estadoPago: "Abonado", esFijo: false, fechaVencimiento: "" });
+  const [gasto, setGasto] = useState({ fecha: today(), tipoGasto: "", observacion: "", monto: "", metodoPago: "Efectivo", estadoPago: "Abonado", esFijo: false, fechaVencimiento: "" });
   const [stockItem, setStockItem] = useState({ fecha: today(), nombre: "", cantidad: "", unidad: "unidades", tipo: "entrada" });
 
   useEffect(() => { localStorage.setItem("lb5_ventas",  JSON.stringify(ventas));  }, [ventas]);
@@ -234,10 +220,14 @@ export default function App() {
   const totalGD = gastosDia.filter(g => g.estadoPago === "Abonado").reduce((a, b) => a + b.monto, 0);
   const ganDia = totalVD - totalGD;
   const gastosCat = {};
-  gastosDia.forEach(g => { gastosCat[g.categoria] = (gastosCat[g.categoria] || 0) + g.monto; });
+  gastosDia.forEach(g => { gastosCat[g.tipoGasto] = (gastosCat[g.tipoGasto] || 0) + g.monto; });
 
   const totalUV = parseInt(venta.cantidad || 0) * MODALIDAD_MULT[venta.modalidad];
   const totalVA = parseFloat(venta.precioUnidad || 0) * parseInt(venta.cantidad || 0);
+
+  // Tipo de gasto seleccionado
+  const tipoSeleccionado = TIPOS_GASTO.find(t => t.label === gasto.tipoGasto);
+  const necesitaObservacion = tipoSeleccionado?.observacion ?? false;
 
   // Acciones
   const agregarVenta = () => {
@@ -253,10 +243,12 @@ export default function App() {
   };
 
   const agregarGasto = () => {
-    if (!gasto.monto || !gasto.descripcion) return showErr("Completá descripción y monto");
+    if (!gasto.tipoGasto) return showErr("Seleccioná un tipo de gasto");
+    if (!gasto.monto) return showErr("Ingresá el monto");
+    if (necesitaObservacion && !gasto.observacion) return showErr("Completá la observación");
     if (gasto.estadoPago === "A crédito" && !gasto.fechaVencimiento) return showErr("Indicá fecha de vencimiento");
     setGastos(p => [...p, { ...gasto, id: Date.now(), monto: +gasto.monto }]);
-    setGasto(g => ({ ...g, descripcion: "", monto: "", fechaVencimiento: "" }));
+    setGasto(g => ({ ...g, observacion: "", monto: "", fechaVencimiento: "" }));
     showOk("✓ Gasto registrado");
   };
 
@@ -273,8 +265,7 @@ export default function App() {
       params.append(entryId, String(datos[campo] ?? ""));
     });
     await fetch(`https://docs.google.com/forms/d/e/${formConfig.formId}/formResponse`, {
-      method: "POST",
-      mode: "no-cors",
+      method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: params.toString(),
     });
@@ -294,13 +285,193 @@ export default function App() {
     if (formConfig?.formId && formConfig?.entries) {
       setSheetsSending(true);
       try {
-        const datos = { ...nc, semana: getWeekLabel(today()), peDiario };
-        await enviarAForm(datos);
+        await enviarAForm({ ...nc, semana: getWeekLabel(today()), peDiario });
         showOk("✓ Enviado al Sheets");
       } catch { showErr("⚠ Error al enviar al Sheets"); }
       setSheetsSending(false);
     }
   };
+
+  // ── Sección de Gastos ────────────────────────────────────
+  const seccionGastos = (
+    <div style={{ padding: isMobile ? 16 : 28 }}>
+      <div style={S.section}>Registrar gasto</div>
+
+      {/* Fecha */}
+      <div style={{ marginBottom: 12 }}>
+        <label style={S.label}>Fecha</label>
+        <input type="date" value={gasto.fecha} onChange={e => setGasto(g => ({...g, fecha: e.target.value}))} style={S.input} />
+      </div>
+
+      {/* Tipo de gasto — lista predeterminada con chips */}
+      <div style={{ marginBottom: 12 }}>
+        <label style={S.label}>Tipo de gasto</label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          {TIPOS_GASTO.map(t => {
+            const activo = gasto.tipoGasto === t.label;
+            return (
+              <button
+                key={t.label}
+                onClick={() => setGasto(g => ({ ...g, tipoGasto: t.label, observacion: "" }))}
+                style={{
+                  padding: "10px 12px",
+                  border: `1px solid ${activo ? C.gold : C.border2}`,
+                  borderRadius: 8,
+                  background: activo ? C.gold + "18" : C.surface2,
+                  color: activo ? C.gold : C.muted,
+                  fontSize: 13,
+                  fontWeight: activo ? 700 : 400,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 6,
+                  transition: "all 0.15s",
+                }}
+              >
+                <span>{t.label}</span>
+                {t.observacion && <span style={{ fontSize: 9, color: activo ? C.gold : C.dim, opacity: 0.7 }}>+ obs.</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Observación (solo cuando el tipo lo requiere) */}
+      {necesitaObservacion && gasto.tipoGasto && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={S.label}>Observación <span style={{ color: C.gold }}>*</span></label>
+          <input
+            type="text"
+            value={gasto.observacion}
+            onChange={e => setGasto(g => ({...g, observacion: e.target.value}))}
+            style={{ ...S.input, borderColor: C.gold + "44" }}
+            placeholder={
+              gasto.tipoGasto === "Materia prima" ? "Ej: Harina 25kg, Huevos x30" :
+              gasto.tipoGasto === "Mercaderías (Reventa)" ? "Ej: Bebidas, Snacks" :
+              gasto.tipoGasto === "Delivery" ? "Ej: PedidosYa, rappi, moto propia" :
+              gasto.tipoGasto === "Impuestos (IVA, municipio)" ? "Ej: IVA mensual, Tasa municipal" :
+              gasto.tipoGasto === "Apps" ? "Ej: Mercado Pago, Uber Eats" :
+              gasto.tipoGasto === "Servicios" ? "Ej: Luz, gas, internet" :
+              gasto.tipoGasto === "Deudas" ? "Ej: Proveedor, préstamo banco" :
+              gasto.tipoGasto === "Marketing" ? "Ej: Instagram Ads, diseñador" :
+              "Detalle..."
+            }
+          />
+        </div>
+      )}
+
+      {/* Monto */}
+      <div style={{ marginBottom: 12 }}>
+        <label style={S.label}>Monto $</label>
+        <input type="number" value={gasto.monto} onChange={e => setGasto(g => ({...g, monto: e.target.value}))} style={S.input} placeholder="0" />
+      </div>
+
+      {/* Toggle costo fijo */}
+      <div style={{ background: C.surface2, border: `1px solid ${gasto.esFijo ? C.gold + "44" : C.border}`, borderRadius: 10, padding: "13px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 13, color: gasto.esFijo ? C.gold : C.muted, fontWeight: gasto.esFijo ? 700 : 400 }}>📌 Costo fijo mensual</div>
+          <div style={{ fontSize: 11, color: C.vdim, marginTop: 2 }}>Suma al cálculo del punto de equilibrio</div>
+        </div>
+        <button onClick={() => setGasto(g => ({...g, esFijo: !g.esFijo}))} style={{ width: 46, height: 26, borderRadius: 13, border: "none", background: gasto.esFijo ? C.gold : "#333", cursor: "pointer", position: "relative", flexShrink: 0 }}>
+          <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: gasto.esFijo ? 23 : 3, transition: "left 0.2s" }} />
+        </button>
+      </div>
+
+      {/* Método de pago */}
+      <div style={{ marginBottom: 12 }}>
+        <label style={S.label}>Método de pago</label>
+        <div style={{ display: "flex", gap: 8 }}>{METODOS_PAGO.map(m => <button key={m} onClick={() => setGasto(g => ({...g, metodoPago: m}))} style={S.chip(gasto.metodoPago === m, C.green)}>{m === "Efectivo" ? "💵 Efectivo" : "📱 Transferencia"}</button>)}</div>
+      </div>
+
+      {/* Estado */}
+      <div style={{ marginBottom: gasto.estadoPago === "A crédito" ? 12 : 18 }}>
+        <label style={S.label}>Estado</label>
+        <div style={{ display: "flex", gap: 8 }}>
+          {["Abonado","A crédito"].map(e => <button key={e} onClick={() => setGasto(g => ({...g, estadoPago: e}))} style={S.chip(gasto.estadoPago === e, e === "Abonado" ? C.green : C.red)}>{e === "Abonado" ? "✓ Abonado" : "📅 A crédito"}</button>)}
+        </div>
+      </div>
+      {gasto.estadoPago === "A crédito" && (
+        <div style={{ marginBottom: 18 }}>
+          <label style={S.label}>Fecha de vencimiento</label>
+          <input type="date" value={gasto.fechaVencimiento} onChange={e => setGasto(g => ({...g, fechaVencimiento: e.target.value}))} style={S.input} />
+        </div>
+      )}
+
+      <button onClick={agregarGasto} style={S.btnPrimary}>Registrar gasto</button>
+
+      {/* Costos fijos */}
+      {gastosFijos.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <div style={S.section}>📌 Costos fijos del mes</div>
+          {gastosFijos.map(g => (
+            <div key={g.id} style={{ ...S.row, borderColor: C.gold + "33" }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{g.tipoGasto}</div>
+                {g.observacion && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{g.observacion}</div>}
+                <div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>{g.estadoPago}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.gold }}>{formatARS(g.monto)}</div>
+                <button onClick={() => setGastos(p => p.filter(x => x.id !== g.id))} style={{ background: "none", border: "none", color: C.dim, cursor: "pointer", fontSize: 20 }}>×</button>
+              </div>
+            </div>
+          ))}
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 13, color: C.dim }}>Total fijos · PE diario</span>
+            <span style={{ fontWeight: 700, color: C.gold }}>{formatARS(totalFijos)} · {formatARS(peDiario)}/día</span>
+          </div>
+        </div>
+      )}
+
+      {/* Gastos de hoy */}
+      <div style={{ marginTop: 32 }}>
+        <div style={S.section}>Gastos de hoy</div>
+        {gastos.filter(g => g.fecha === today()).length === 0
+          ? <div style={{ color: C.vdim, fontSize: 13, textAlign: "center", padding: "24px 0" }}>Sin gastos hoy</div>
+          : gastos.filter(g => g.fecha === today()).map(g => (
+            <div key={g.id} style={S.row}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>
+                  {g.tipoGasto || g.descripcion || "—"}
+                  {g.esFijo ? " 📌" : ""}
+                </div>
+                {g.observacion && <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{g.observacion}</div>}
+                <div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>
+                  {g.metodoPago} · <span style={{ color: g.estadoPago === "Abonado" ? C.green : C.red }}>{g.estadoPago}</span>
+                  {g.estadoPago === "A crédito" && g.fechaVencimiento ? ` · vence ${g.fechaVencimiento}` : ""}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.red }}>{formatARS(g.monto)}</div>
+                <button onClick={() => setGastos(p => p.filter(x => x.id !== g.id))} style={{ background: "none", border: "none", color: C.dim, cursor: "pointer", fontSize: 20 }}>×</button>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+
+      {/* Créditos pendientes */}
+      {gastosCredito.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <div style={S.section}>Créditos pendientes</div>
+          {gastosCredito.map(g => (
+            <div key={g.id} style={{ ...S.row, borderColor: g.fechaVencimiento && g.fechaVencimiento < today() ? C.red + "55" : C.border }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{g.tipoGasto || g.descripcion || "—"}</div>
+                {g.observacion && <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{g.observacion}</div>}
+                <div style={{ fontSize: 11, color: g.fechaVencimiento && g.fechaVencimiento < today() ? C.red : C.dim, marginTop: 2 }}>
+                  {g.fecha} · vence {g.fechaVencimiento || "sin fecha"}{g.fechaVencimiento && g.fechaVencimiento < today() ? " ⚠️ VENCIDO" : ""}
+                </div>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.red }}>{formatARS(g.monto)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   // ── LAYOUT ──────────────────────────────────────────────────────────
   const content = (
@@ -309,16 +480,14 @@ export default function App() {
       {/* ── INICIO ── */}
       {tab === "Inicio" && (
         <div style={{ padding: isMobile ? 16 : 28 }}>
-
           {creditosVencidos.length > 0 && (
             <div style={{ background: "#2a0e0e", border: `1px solid ${C.red}44`, borderRadius: 12, padding: "12px 16px", marginBottom: 18 }}>
               <div style={{ fontSize: 13, color: C.red, fontWeight: 700, marginBottom: 4 }}>⚠️ {creditosVencidos.length} crédito{creditosVencidos.length > 1 ? "s" : ""} vencido{creditosVencidos.length > 1 ? "s" : ""}</div>
-              {creditosVencidos.map(g => <div key={g.id} style={{ fontSize: 12, color: C.muted }}>{g.descripcion} · {formatARS(g.monto)} · vence {g.fechaVencimiento}</div>)}
+              {creditosVencidos.map(g => <div key={g.id} style={{ fontSize: 12, color: C.muted }}>{g.tipoGasto}{g.observacion ? ` · ${g.observacion}` : ""} · {formatARS(g.monto)} · vence {g.fechaVencimiento}</div>)}
             </div>
           )}
 
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 18 }}>
-            {/* Estrella */}
             {estrella ? (
               <div style={{ background: "linear-gradient(135deg,#2a1f0e,#1a1510)", border: `1px solid ${C.gold}33`, borderRadius: 14, padding: 20, textAlign: "center" }}>
                 <div style={{ fontSize: 10, color: C.gold, letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 8 }}>⭐ Producto estrella hoy</div>
@@ -331,7 +500,6 @@ export default function App() {
               </div>
             )}
 
-            {/* PE */}
             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div style={{ fontSize: 10, color: C.dim, letterSpacing: 2.5, textTransform: "uppercase", fontWeight: 600 }}>Punto de equilibrio</div>
@@ -365,23 +533,15 @@ export default function App() {
             </div>
           </div>
 
-          {/* Cards resumen */}
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 18 }}>
-            <div style={S.card(C.greenDim, C.green)}>
-              <div style={{ fontSize: 10, color: C.green, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Ventas hoy</div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>{formatARS(totalHoy)}</div>
-            </div>
-            <div style={S.card(C.redDim, C.red)}>
-              <div style={{ fontSize: 10, color: C.red, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Gastos hoy</div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>{formatARS(gastosHoy)}</div>
-            </div>
+            <div style={S.card(C.greenDim, C.green)}><div style={{ fontSize: 10, color: C.green, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Ventas hoy</div><div style={{ fontSize: 22, fontWeight: 800 }}>{formatARS(totalHoy)}</div></div>
+            <div style={S.card(C.redDim, C.red)}><div style={{ fontSize: 10, color: C.red, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Gastos hoy</div><div style={{ fontSize: 22, fontWeight: 800 }}>{formatARS(gastosHoy)}</div></div>
             <div style={{ ...S.card(gananciaHoy >= 0 ? C.greenDim : C.redDim, gananciaHoy >= 0 ? C.green : C.red), gridColumn: isMobile ? "span 2" : "auto" }}>
               <div style={{ fontSize: 10, color: gananciaHoy >= 0 ? C.green : C.red, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Ganancia neta</div>
               <div style={{ fontSize: 26, fontWeight: 800 }}>{formatARS(gananciaHoy)}</div>
             </div>
           </div>
 
-          {/* Cierre */}
           <div style={S.section}>Cierre de caja</div>
           <button onClick={() => setCierreModal(true)} style={{ ...S.btnDanger, marginBottom: 16 }}>🔒 Hacer cierre de caja</button>
 
@@ -402,48 +562,34 @@ export default function App() {
             );
           })()}
 
-          {/* Google Forms -> Sheets */}
           <div style={S.section}>Google Sheets (vía Google Forms)</div>
           {editSheets ? (
             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18 }}>
               <div style={{ fontSize: 13, color: C.text, fontWeight: 700, marginBottom: 10 }}>Conectar con Google Forms</div>
-
-              <div style={{ fontSize: 12, color: C.muted, marginBottom: 10, lineHeight: 1.6 }}>
-                1. Creá un Google Form con 11 preguntas de respuesta corta, una por cada dato:
-              </div>
+              <div style={{ fontSize: 12, color: C.muted, marginBottom: 10, lineHeight: 1.6 }}>1. Creá un Google Form con 11 preguntas de respuesta corta, una por cada dato:</div>
               <div style={{ background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 8, padding: 12, marginBottom: 10, maxHeight: 180, overflowY: "auto" }}>
                 {CAMPOS_FORM.map(c => (
                   <div key={c.key} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 6, gap: 8 }}>
                     <span style={{ color: C.muted, flexShrink: 0 }}>{c.label}</span>
-                    <code style={{ color: C.gold, fontSize: 10, textAlign: "right" }}>{MARKERS[c.key]}</code>
+                    <code style={{ color: C.gold, fontSize: 10 }}>{MARKERS[c.key]}</code>
                   </div>
                 ))}
               </div>
-
-              <div style={{ fontSize: 12, color: C.muted, marginBottom: 10, lineHeight: 1.6 }}>
-                2. En cada pregunta del formulario, escribí como respuesta de prueba el código de la derecha (ej: en la pregunta "Fecha" escribí <code style={{ color: C.gold }}>MARCA_FECHA_01</code>).
-              </div>
-              <div style={{ fontSize: 12, color: C.muted, marginBottom: 10, lineHeight: 1.6 }}>
-                3. En los 3 puntitos del formulario tocá <b>"Obtener enlace para completar automáticamente"</b>, completá con esos códigos, generá el link y copialo.
-              </div>
               <div style={{ fontSize: 12, color: C.muted, marginBottom: 12, lineHeight: 1.6 }}>
+                2. En cada pregunta escribí el código como respuesta de prueba.<br/>
+                3. En los 3 puntitos → "Obtener enlace para completar automáticamente", generá el link y copialo.<br/>
                 4. Pegá ese link acá:
               </div>
-
-              <textarea value={linkTemp} onChange={e => { setLinkTemp(e.target.value); setLinkError(""); }} style={{ ...S.input, minHeight: 80, resize: "vertical", marginBottom: 8, fontFamily: "monospace", fontSize: 11 }} placeholder="https://docs.google.com/forms/d/e/.../viewform?usp=pp_url&entry.123=MARCA_FECHA_01&..." />
-
+              <textarea value={linkTemp} onChange={e => { setLinkTemp(e.target.value); setLinkError(""); }} style={{ ...S.input, minHeight: 80, resize: "vertical", marginBottom: 8, fontFamily: "monospace", fontSize: 11 }} placeholder="https://docs.google.com/forms/d/e/.../viewform?..." />
               {linkError && <div style={{ color: C.red, fontSize: 12, marginBottom: 8 }}>{linkError}</div>}
-
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => { setEditSheets(false); setLinkError(""); }} style={S.btnGhost}>Cancelar</button>
                 <button onClick={() => {
                   const parsed = parseFormLink(linkTemp);
                   if (!parsed) return setLinkError("No pude leer ese link. Verificá que sea el link 'pre-llenado' completo.");
                   const faltantes = CAMPOS_FORM.filter(c => !parsed.entries[c.key]);
-                  if (faltantes.length > 0) return setLinkError(`Faltan campos: ${faltantes.map(f => f.label).join(", ")}. Revisá que cada pregunta tenga su código exacto.`);
-                  setFormConfig(parsed);
-                  setEditSheets(false);
-                  showOk("✓ Google Forms conectado");
+                  if (faltantes.length > 0) return setLinkError(`Faltan campos: ${faltantes.map(f => f.label).join(", ")}.`);
+                  setFormConfig(parsed); setEditSheets(false); showOk("✓ Google Forms conectado");
                 }} style={{ ...S.btnPrimary, flex: 2, padding: "12px 0" }}>Conectar</button>
               </div>
             </div>
@@ -460,12 +606,12 @@ export default function App() {
                 <button onClick={async () => {
                   setSheetsSending(true);
                   try {
-                    await enviarAForm({ fecha: today(), turno: "TEST", efectivo: 1111, transferencia: 2222, gastoEfectivo: 333, efectivoNeto: 778, totalVentasDia: 9999, totalGastosDia: 333, gananciaDia: 9666, semana: getWeekLabel(today()), peDiario: peDiario });
-                    showOk("✓ Prueba enviada · revisá el formulario");
+                    await enviarAForm({ fecha: today(), turno: "TEST", efectivo: 1111, transferencia: 2222, gastoEfectivo: 333, efectivoNeto: 778, totalVentasDia: 9999, totalGastosDia: 333, gananciaDia: 9666, semana: getWeekLabel(today()), peDiario });
+                    showOk("✓ Prueba enviada");
                   } catch { showErr("⚠ Error en la prueba"); }
                   setSheetsSending(false);
                 }} disabled={sheetsSending} style={{ width: "100%", background: "none", border: `1px solid ${C.gold}44`, borderRadius: 8, color: C.gold, fontSize: 12, padding: "9px 0", cursor: "pointer", fontWeight: 600 }}>
-                  {sheetsSending ? "Enviando prueba..." : "🧪 Enviar dato de prueba"}
+                  {sheetsSending ? "Enviando..." : "🧪 Enviar dato de prueba"}
                 </button>
               )}
             </div>
@@ -483,14 +629,13 @@ export default function App() {
           </div>
           <div style={{ marginBottom: 12 }}>
             <label style={S.label}>Producto</label>
-            {productosDisponibles.length === 0 ? (
-              <div style={{ background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 10, padding: 14, fontSize: 13, color: C.dim, textAlign: "center" }}>Sin stock · cargá productos en la pestaña Stock</div>
-            ) : (
-              <select value={venta.producto} onChange={e => setVenta(v => ({...v, producto: e.target.value}))} style={S.input}>
-                <option value="">Seleccioná un producto</option>
-                {productosDisponibles.map(p => <option key={p} value={p}>{p} ({stockActual[p].cantidad} {stockActual[p].unidad})</option>)}
-              </select>
-            )}
+            {productosDisponibles.length === 0
+              ? <div style={{ background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 10, padding: 14, fontSize: 13, color: C.dim, textAlign: "center" }}>Sin stock · cargá productos en la pestaña Stock</div>
+              : <select value={venta.producto} onChange={e => setVenta(v => ({...v, producto: e.target.value}))} style={S.input}>
+                  <option value="">Seleccioná un producto</option>
+                  {productosDisponibles.map(p => <option key={p} value={p}>{p} ({stockActual[p].cantidad} {stockActual[p].unidad})</option>)}
+                </select>
+            }
           </div>
           <div style={{ marginBottom: 12 }}>
             <label style={S.label}>Modalidad</label>
@@ -512,7 +657,6 @@ export default function App() {
             </div>
           )}
           <button onClick={agregarVenta} style={S.btnPrimary}>Registrar venta</button>
-
           <div style={{ marginTop: 32 }}>
             <div style={S.section}>Ventas de hoy</div>
             {ventasHoy.length === 0 ? <div style={{ color: C.vdim, fontSize: 13, textAlign: "center", padding: "24px 0" }}>Sin ventas hoy</div>
@@ -533,92 +677,7 @@ export default function App() {
       )}
 
       {/* ── GASTOS ── */}
-      {tab === "Gastos" && (
-        <div style={{ padding: isMobile ? 16 : 28 }}>
-          <div style={S.section}>Registrar gasto</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-            <div><label style={S.label}>Fecha</label><input type="date" value={gasto.fecha} onChange={e => setGasto(g => ({...g, fecha: e.target.value}))} style={S.input} /></div>
-            <div><label style={S.label}>Categoría</label><select value={gasto.categoria} onChange={e => setGasto(g => ({...g, categoria: e.target.value}))} style={S.input}>{CATEGORIAS_GASTO.map(c => <option key={c}>{c}</option>)}</select></div>
-          </div>
-          <div style={{ marginBottom: 12 }}><label style={S.label}>Descripción</label><input type="text" value={gasto.descripcion} onChange={e => setGasto(g => ({...g, descripcion: e.target.value}))} style={S.input} placeholder="Ej: Alquiler junio, Harina 25kg" /></div>
-          <div style={{ marginBottom: 12 }}><label style={S.label}>Monto $</label><input type="number" value={gasto.monto} onChange={e => setGasto(g => ({...g, monto: e.target.value}))} style={S.input} placeholder="0" /></div>
-
-          {/* Toggle costo fijo */}
-          <div style={{ background: C.surface2, border: `1px solid ${gasto.esFijo ? C.gold + "44" : C.border}`, borderRadius: 10, padding: "13px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 13, color: gasto.esFijo ? C.gold : C.muted, fontWeight: gasto.esFijo ? 700 : 400 }}>📌 Costo fijo mensual</div>
-              <div style={{ fontSize: 11, color: C.vdim, marginTop: 2 }}>Suma al cálculo del punto de equilibrio</div>
-            </div>
-            <button onClick={() => setGasto(g => ({...g, esFijo: !g.esFijo}))} style={{ width: 46, height: 26, borderRadius: 13, border: "none", background: gasto.esFijo ? C.gold : "#333", cursor: "pointer", position: "relative", flexShrink: 0 }}>
-              <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: gasto.esFijo ? 23 : 3, transition: "left 0.2s" }} />
-            </button>
-          </div>
-
-          <div style={{ marginBottom: 12 }}>
-            <label style={S.label}>Método de pago</label>
-            <div style={{ display: "flex", gap: 8 }}>{METODOS_PAGO.map(m => <button key={m} onClick={() => setGasto(g => ({...g, metodoPago: m}))} style={S.chip(gasto.metodoPago === m, C.green)}>{m === "Efectivo" ? "💵 Efectivo" : "📱 Transferencia"}</button>)}</div>
-          </div>
-          <div style={{ marginBottom: gasto.estadoPago === "A crédito" ? 12 : 18 }}>
-            <label style={S.label}>Estado</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              {["Abonado","A crédito"].map(e => <button key={e} onClick={() => setGasto(g => ({...g, estadoPago: e}))} style={S.chip(gasto.estadoPago === e, e === "Abonado" ? C.green : C.red)}>{e === "Abonado" ? "✓ Abonado" : "📅 A crédito"}</button>)}
-            </div>
-          </div>
-          {gasto.estadoPago === "A crédito" && (
-            <div style={{ marginBottom: 18 }}><label style={S.label}>Fecha de vencimiento</label><input type="date" value={gasto.fechaVencimiento} onChange={e => setGasto(g => ({...g, fechaVencimiento: e.target.value}))} style={S.input} /></div>
-          )}
-          <button onClick={agregarGasto} style={S.btnPrimary}>Registrar gasto</button>
-
-          {gastosFijos.length > 0 && (
-            <div style={{ marginTop: 32 }}>
-              <div style={S.section}>📌 Costos fijos del mes</div>
-              {gastosFijos.map(g => (
-                <div key={g.id} style={{ ...S.row, borderColor: C.gold + "33" }}>
-                  <div><div style={{ fontSize: 13, fontWeight: 600 }}>{g.descripcion}</div><div style={{ fontSize: 11, color: C.dim, marginTop: 3 }}>{g.categoria} · {g.estadoPago}</div></div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: C.gold }}>{formatARS(g.monto)}</div>
-                    <button onClick={() => setGastos(p => p.filter(x => x.id !== g.id))} style={{ background: "none", border: "none", color: C.dim, cursor: "pointer", fontSize: 20 }}>×</button>
-                  </div>
-                </div>
-              ))}
-              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, color: C.dim }}>Total fijos · PE diario</span>
-                <span style={{ fontWeight: 700, color: C.gold }}>{formatARS(totalFijos)} · {formatARS(peDiario)}/día</span>
-              </div>
-            </div>
-          )}
-
-          <div style={{ marginTop: 32 }}>
-            <div style={S.section}>Gastos de hoy</div>
-            {gastos.filter(g => g.fecha === today()).length === 0
-              ? <div style={{ color: C.vdim, fontSize: 13, textAlign: "center", padding: "24px 0" }}>Sin gastos hoy</div>
-              : gastos.filter(g => g.fecha === today()).map(g => (
-                <div key={g.id} style={S.row}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{g.descripcion} {g.esFijo ? "📌" : ""}</div>
-                    <div style={{ fontSize: 11, color: C.dim, marginTop: 3 }}>{g.categoria} · {g.metodoPago} · <span style={{ color: g.estadoPago === "Abonado" ? C.green : C.red }}>{g.estadoPago}</span>{g.estadoPago === "A crédito" && g.fechaVencimiento ? ` · vence ${g.fechaVencimiento}` : ""}</div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.red }}>{formatARS(g.monto)}</div>
-                    <button onClick={() => setGastos(p => p.filter(x => x.id !== g.id))} style={{ background: "none", border: "none", color: C.dim, cursor: "pointer", fontSize: 20 }}>×</button>
-                  </div>
-                </div>
-              ))}
-          </div>
-
-          {gastosCredito.length > 0 && (
-            <div style={{ marginTop: 28 }}>
-              <div style={S.section}>Créditos pendientes</div>
-              {gastosCredito.map(g => (
-                <div key={g.id} style={{ ...S.row, borderColor: g.fechaVencimiento && g.fechaVencimiento < today() ? C.red + "55" : C.border }}>
-                  <div><div style={{ fontSize: 13, fontWeight: 600 }}>{g.descripcion}</div><div style={{ fontSize: 11, color: g.fechaVencimiento && g.fechaVencimiento < today() ? C.red : C.dim, marginTop: 3 }}>{g.fecha} · vence {g.fechaVencimiento || "sin fecha"}{g.fechaVencimiento && g.fechaVencimiento < today() ? " ⚠️ VENCIDO" : ""}</div></div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.red }}>{formatARS(g.monto)}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {tab === "Gastos" && seccionGastos}
 
       {/* ── STOCK ── */}
       {tab === "Stock" && (
@@ -639,7 +698,6 @@ export default function App() {
           </div>
           <div style={{ marginBottom: 18 }}><label style={S.label}>Fecha</label><input type="date" value={stockItem.fecha} onChange={e => setStockItem(s => ({...s, fecha: e.target.value}))} style={S.input} /></div>
           <button onClick={agregarStock} style={S.btnPrimary}>Registrar movimiento</button>
-
           <div style={{ marginTop: 32 }}>
             <div style={S.section}>Stock actual</div>
             {Object.keys(stockActual).length === 0
@@ -662,13 +720,11 @@ export default function App() {
       {tab === "Resumen" && (
         <div style={{ padding: isMobile ? 16 : 28 }}>
           <div style={{ marginBottom: 20 }}><label style={S.label}>Ver resumen del día</label><input type="date" value={filtroFecha} onChange={e => setFiltroFecha(e.target.value)} style={S.input} /></div>
-
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3,1fr)", gap: 12, marginBottom: 16 }}>
             <div style={S.card(C.greenDim, C.green)}><div style={{ fontSize: 10, color: C.green, textTransform: "uppercase", marginBottom: 4 }}>Ventas</div><div style={{ fontSize: 22, fontWeight: 800 }}>{formatARS(totalVD)}</div></div>
             <div style={S.card(C.redDim, C.red)}><div style={{ fontSize: 10, color: C.red, textTransform: "uppercase", marginBottom: 4 }}>Gastos</div><div style={{ fontSize: 22, fontWeight: 800 }}>{formatARS(totalGD)}</div></div>
             <div style={{ ...S.card(ganDia >= 0 ? C.greenDim : C.redDim, ganDia >= 0 ? C.green : C.red), gridColumn: isMobile ? "span 2" : "auto" }}><div style={{ fontSize: 10, color: ganDia >= 0 ? C.green : C.red, textTransform: "uppercase", marginBottom: 4 }}>Ganancia</div><div style={{ fontSize: 24, fontWeight: 800 }}>{formatARS(ganDia)}</div></div>
           </div>
-
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
             {METODOS_PAGO.map(mp => (
               <div key={mp} style={S.card(C.surface, "#555")}>
@@ -677,7 +733,6 @@ export default function App() {
               </div>
             ))}
           </div>
-
           {TURNOS.map(turno => {
             const tv = ventasDia.filter(v => v.turno === turno);
             if (!tv.length) return null;
@@ -693,10 +748,9 @@ export default function App() {
               </div>
             );
           })}
-
           {Object.keys(gastosCat).length > 0 && (
             <div style={{ marginBottom: 20 }}>
-              <div style={S.section}>Gastos por categoría</div>
+              <div style={S.section}>Gastos por tipo</div>
               {Object.entries(gastosCat).map(([cat, total]) => (
                 <div key={cat} style={{ ...S.row, marginBottom: 8 }}>
                   <span style={{ fontSize: 13 }}>{cat}</span>
@@ -705,7 +759,6 @@ export default function App() {
               ))}
             </div>
           )}
-
           {cierres.length > 0 && (
             <div>
               <div style={S.section}>Historial de cierres</div>
@@ -727,51 +780,31 @@ export default function App() {
               ))}
             </div>
           )}
-
-          {ventasDia.length === 0 && gastosDia.length === 0 && (
-            <div style={{ color: C.vdim, fontSize: 13, textAlign: "center", padding: "40px 0" }}>Sin movimientos para este día</div>
-          )}
+          {ventasDia.length === 0 && gastosDia.length === 0 && <div style={{ color: C.vdim, fontSize: 13, textAlign: "center", padding: "40px 0" }}>Sin movimientos para este día</div>}
         </div>
       )}
 
       {/* ── CONFIGURACIÓN ── */}
       {tab === "Configuración" && (
         <div style={{ padding: isMobile ? 16 : 28 }}>
-
-          {/* Calendario de excepciones */}
           <div style={S.section}>Calendario del mes</div>
-          <div style={{ fontSize: 12, color: C.muted, marginBottom: 14, lineHeight: 1.6 }}>
-            Tocá un día para marcarlo como excepción: si normalmente está cerrado lo marca como trabajado, y si normalmente abre lo marca como cerrado (feriado, falta, etc). Volvé a tocarlo para sacar la excepción.
-          </div>
-
+          <div style={{ fontSize: 12, color: C.muted, marginBottom: 14, lineHeight: 1.6 }}>Tocá un día para marcarlo como excepción.</div>
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16, marginBottom: 18 }}>
-            {/* Navegación de mes */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <button onClick={() => setCalMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, color: C.muted, fontSize: 14, padding: "6px 12px", cursor: "pointer" }}>‹</button>
-              <div style={{ fontSize: 14, fontWeight: 700, textTransform: "capitalize" }}>
-                {calMonth.toLocaleString("es-AR", { month: "long", year: "numeric" })}
-              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, textTransform: "capitalize" }}>{calMonth.toLocaleString("es-AR", { month: "long", year: "numeric" })}</div>
               <button onClick={() => setCalMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, color: C.muted, fontSize: 14, padding: "6px 12px", cursor: "pointer" }}>›</button>
             </div>
-
-            {/* Encabezado días de semana (Lun a Dom) */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 6 }}>
-              {["L","M","M","J","V","S","D"].map((d, i) => (
-                <div key={i} style={{ textAlign: "center", fontSize: 10, color: C.dim, fontWeight: 700 }}>{d}</div>
-              ))}
+              {["L","M","M","J","V","S","D"].map((d, i) => <div key={i} style={{ textAlign: "center", fontSize: 10, color: C.dim, fontWeight: 700 }}>{d}</div>)}
             </div>
-
-            {/* Grilla de días */}
             {(() => {
-              const year = calMonth.getFullYear();
-              const month = calMonth.getMonth();
+              const year = calMonth.getFullYear(); const month = calMonth.getMonth();
               const totalDias = new Date(year, month + 1, 0).getDate();
-              const primerDiaSemana = new Date(year, month, 1).getDay(); // 0=domingo
-              const offset = (primerDiaSemana + 6) % 7; // convertir a que la semana arranque en lunes
+              const offset = (new Date(year, month, 1).getDay() + 6) % 7;
               const celdas = [];
               for (let i = 0; i < offset; i++) celdas.push(null);
               for (let d = 1; d <= totalDias; d++) celdas.push(d);
-
               return (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
                   {celdas.map((d, i) => {
@@ -782,27 +815,8 @@ export default function App() {
                     const esExcepcion = key in excepciones;
                     const esHoy = key === fmtDate(new Date());
                     return (
-                      <button
-                        key={i}
-                        onClick={() => setExcepciones(ex => {
-                          const baseAbierto = horarios[date.getDay()]?.abierto;
-                          const next = { ...ex };
-                          if (key in next) delete next[key];
-                          else next[key] = !baseAbierto;
-                          return next;
-                        })}
-                        style={{
-                          aspectRatio: "1",
-                          border: esHoy ? `1px solid ${C.gold}` : `1px solid ${esExcepcion ? (estado.abierto ? C.green : C.red) + "88" : C.border}`,
-                          borderRadius: 8,
-                          background: estado.abierto ? C.greenDim : C.redDim,
-                          color: C.text,
-                          fontSize: 12,
-                          fontWeight: esExcepcion ? 800 : 400,
-                          cursor: "pointer",
-                          position: "relative",
-                          display: "flex", alignItems: "center", justifyContent: "center"
-                        }}>
+                      <button key={i} onClick={() => setExcepciones(ex => { const baseAbierto = horarios[date.getDay()]?.abierto; const next = { ...ex }; if (key in next) delete next[key]; else next[key] = !baseAbierto; return next; })}
+                        style={{ aspectRatio: "1", border: esHoy ? `1px solid ${C.gold}` : `1px solid ${esExcepcion ? (estado.abierto ? C.green : C.red) + "88" : C.border}`, borderRadius: 8, background: estado.abierto ? C.greenDim : C.redDim, color: C.text, fontSize: 12, fontWeight: esExcepcion ? 800 : 400, cursor: "pointer", position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         {d}
                         {esExcepcion && <span style={{ position: "absolute", top: 2, right: 3, fontSize: 8 }}>★</span>}
                       </button>
@@ -811,8 +825,6 @@ export default function App() {
                 </div>
               );
             })()}
-
-            {/* Leyenda */}
             <div style={{ display: "flex", gap: 14, marginTop: 14, fontSize: 11, color: C.dim, flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 4, background: C.greenDim, border: `1px solid ${C.green}55` }} /> Trabaja</div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 4, background: C.redDim, border: `1px solid ${C.red}55` }} /> Cerrado</div>
@@ -820,41 +832,24 @@ export default function App() {
             </div>
           </div>
 
-          {/* Configuración semanal */}
           <div style={S.section}>Días y horarios habituales</div>
-          <div style={{ fontSize: 12, color: C.muted, marginBottom: 16, lineHeight: 1.6 }}>
-            Marcá qué días abre el local y el horario de cada uno. Esto se usa para calcular los días hábiles del mes y el punto de equilibrio diario.
-          </div>
-
+          <div style={{ fontSize: 12, color: C.muted, marginBottom: 16, lineHeight: 1.6 }}>Configurá qué días abre el local y el horario de cada uno.</div>
           {DIAS_SEMANA.map((nombre, idx) => {
             const cfg = horarios[idx];
             const esHoy = new Date().getDay() === idx;
             return (
               <div key={idx} style={{ background: C.surface, border: `1px solid ${esHoy ? C.gold + "44" : C.border}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: cfg.abierto ? 10 : 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: cfg.abierto ? C.text : C.dim }}>
-                    {nombre} {esHoy && <span style={{ fontSize: 10, color: C.gold }}>· hoy</span>}
-                  </div>
-                  <button
-                    onClick={() => setHorarios(h => h.map((d, i) => i === idx ? { ...d, abierto: !d.abierto, texto: !d.abierto && !d.texto ? "8:00 – 13:00" : d.texto } : d))}
-                    style={{ width: 46, height: 26, borderRadius: 13, border: "none", background: cfg.abierto ? C.green : "#333", cursor: "pointer", position: "relative", flexShrink: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: cfg.abierto ? C.text : C.dim }}>{nombre} {esHoy && <span style={{ fontSize: 10, color: C.gold }}>· hoy</span>}</div>
+                  <button onClick={() => setHorarios(h => h.map((d, i) => i === idx ? { ...d, abierto: !d.abierto, texto: !d.abierto && !d.texto ? "8:00 – 13:00" : d.texto } : d))} style={{ width: 46, height: 26, borderRadius: 13, border: "none", background: cfg.abierto ? C.green : "#333", cursor: "pointer", position: "relative", flexShrink: 0 }}>
                     <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: cfg.abierto ? 23 : 3, transition: "left 0.2s" }} />
                   </button>
                 </div>
-                {cfg.abierto && (
-                  <input
-                    type="text"
-                    value={cfg.texto}
-                    onChange={e => setHorarios(h => h.map((d, i) => i === idx ? { ...d, texto: e.target.value } : d))}
-                    style={S.input}
-                    placeholder="Ej: 7:30 – 13:00 / 16:00 – 21:00"
-                  />
-                )}
+                {cfg.abierto && <input type="text" value={cfg.texto} onChange={e => setHorarios(h => h.map((d, i) => i === idx ? { ...d, texto: e.target.value } : d))} style={S.input} placeholder="Ej: 7:30 – 13:00 / 16:00 – 21:00" />}
                 {!cfg.abierto && <div style={{ fontSize: 12, color: C.vdim }}>Cerrado</div>}
               </div>
             );
           })}
-
           <div style={{ background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 10, padding: "12px 16px", marginTop: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.dim }}>
               <span>Días hábiles este mes</span>
@@ -910,8 +905,6 @@ export default function App() {
       {ok && <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", background: C.gold, color: "#0f0f0f", padding: "10px 24px", borderRadius: 20, fontWeight: 700, fontSize: 13, zIndex: 999, whiteSpace: "nowrap", boxShadow: `0 4px 20px ${C.gold}44` }}>{ok}</div>}
       {err && <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", background: "#7a2020", color: C.text, padding: "10px 24px", borderRadius: 20, fontWeight: 700, fontSize: 13, zIndex: 999, whiteSpace: "nowrap" }}>{err}</div>}
       {modalCierre}
-
-      {/* Header mobile */}
       <div style={{ background: "linear-gradient(135deg,#1a1a1a 0%,#2a1f0e 100%)", padding: "20px 16px 14px", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ fontSize: 9, letterSpacing: 3, color: C.gold + "88", textTransform: "uppercase", marginBottom: 3 }}>Panel de gestión</div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -919,10 +912,7 @@ export default function App() {
           <div style={{ fontSize: 11, color: C.dim }}>{getDayName()} · {getHorario(horarios, excepciones) || "Cerrado"}</div>
         </div>
       </div>
-
       {content}
-
-      {/* Bottom nav mobile */}
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#111", borderTop: `1px solid ${C.border}`, display: "flex", zIndex: 10, paddingBottom: "env(safe-area-inset-bottom)" }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "10px 0 12px", border: "none", background: "none", color: tab === t.id ? C.gold : C.dim, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
@@ -940,8 +930,6 @@ export default function App() {
       {ok && <div style={{ position: "fixed", top: 24, right: 24, background: C.gold, color: "#0f0f0f", padding: "12px 28px", borderRadius: 12, fontWeight: 700, fontSize: 14, zIndex: 999, boxShadow: `0 4px 20px ${C.gold}44` }}>{ok}</div>}
       {err && <div style={{ position: "fixed", top: 24, right: 24, background: "#7a2020", color: C.text, padding: "12px 28px", borderRadius: 12, fontWeight: 700, fontSize: 14, zIndex: 999 }}>{err}</div>}
       {modalCierre}
-
-      {/* Sidebar desktop */}
       <div style={{ width: 220, background: "#111", borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, bottom: 0 }}>
         <div style={{ padding: "28px 20px 24px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ fontSize: 9, letterSpacing: 3, color: C.gold + "88", textTransform: "uppercase", marginBottom: 6 }}>Panel de gestión</div>
@@ -949,48 +937,31 @@ export default function App() {
           <div style={{ fontSize: 11, color: C.dim }}>{getDayName()}</div>
           <div style={{ fontSize: 11, color: C.dim }}>{getHorario(horarios, excepciones) || "Cerrado hoy"}</div>
         </div>
-
         <nav style={{ flex: 1, padding: "16px 12px" }}>
           {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", border: "none", borderRadius: 10, background: tab === t.id ? C.gold + "18" : "none", color: tab === t.id ? C.gold : C.dim, fontWeight: tab === t.id ? 700 : 400, fontSize: 14, cursor: "pointer", marginBottom: 4, textAlign: "left", transition: "all 0.15s" }}>
-              <span style={{ fontSize: 18 }}>{t.icon}</span>
-              {t.label}
+            <button key={t.id} onClick={() => setTab(t.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", border: "none", borderRadius: 10, background: tab === t.id ? C.gold + "18" : "none", color: tab === t.id ? C.gold : C.dim, fontWeight: tab === t.id ? 700 : 400, fontSize: 14, cursor: "pointer", marginBottom: 4, textAlign: "left" }}>
+              <span style={{ fontSize: 18 }}>{t.icon}</span>{t.label}
             </button>
           ))}
         </nav>
-
-        {/* Mini resumen sidebar */}
         <div style={{ padding: "16px 20px", borderTop: `1px solid ${C.border}` }}>
           <div style={{ fontSize: 10, color: C.vdim, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>Hoy</div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ fontSize: 12, color: C.dim }}>Ventas</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>{formatARS(totalHoy)}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-            <span style={{ fontSize: 12, color: C.dim }}>Gastos</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: C.red }}>{formatARS(gastosHoy)}</span>
-          </div>
-          {peDiario > 0 && (
-            <>
-              <div style={{ background: "#1e1e1e", borderRadius: 99, height: 4, overflow: "hidden", marginBottom: 4 }}>
-                <div style={{ width: `${pct}%`, background: barColor, height: "100%", borderRadius: 99 }} />
-              </div>
-              <div style={{ fontSize: 10, color: C.dim, textAlign: "right" }}>PE: {pct.toFixed(0)}%</div>
-            </>
-          )}
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}><span style={{ fontSize: 12, color: C.dim }}>Ventas</span><span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>{formatARS(totalHoy)}</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}><span style={{ fontSize: 12, color: C.dim }}>Gastos</span><span style={{ fontSize: 12, fontWeight: 700, color: C.red }}>{formatARS(gastosHoy)}</span></div>
+          {peDiario > 0 && (<>
+            <div style={{ background: "#1e1e1e", borderRadius: 99, height: 4, overflow: "hidden", marginBottom: 4 }}>
+              <div style={{ width: `${pct}%`, background: barColor, height: "100%", borderRadius: 99 }} />
+            </div>
+            <div style={{ fontSize: 10, color: C.dim, textAlign: "right" }}>PE: {pct.toFixed(0)}%</div>
+          </>)}
         </div>
       </div>
-
-      {/* Main content desktop */}
       <div style={{ marginLeft: 220, flex: 1, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-        {/* Topbar desktop */}
         <div style={{ background: "linear-gradient(135deg,#1a1a1a 0%,#2a1f0e 100%)", padding: "18px 32px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 10 }}>
           <div style={{ fontSize: 18, fontWeight: 700 }}>{TABS.find(t => t.id === tab)?.label}</div>
           <div style={{ fontSize: 12, color: C.dim }}>{new Date().toLocaleDateString("es-AR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</div>
         </div>
-        <div style={{ flex: 1, maxWidth: 860, width: "100%" }}>
-          {content}
-        </div>
+        <div style={{ flex: 1, maxWidth: 860, width: "100%" }}>{content}</div>
       </div>
     </div>
   );
