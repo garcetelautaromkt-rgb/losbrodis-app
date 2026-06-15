@@ -24,13 +24,33 @@ const HORARIOS_DEFAULT = [
   { abierto: true,  texto: "8:00 – 13:00" },
 ];
 
+
 const getDayName = () => DIAS_SEMANA[new Date().getDay()];
 
-const getHorario = (horarios) => {
-  const d = new Date().getDay();
-  const cfg = horarios[d];
-  if (!cfg || !cfg.abierto) return null;
-  return cfg.texto || null;
+// Formato YYYY-MM-DD en horario local (evita bugs de zona horaria con toISOString)
+const fmtDate = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+};
+
+// Estado real de un día: revisa primero si hay una excepción puntual,
+// si no, usa la configuración semanal por defecto
+const getEstadoDia = (date, horarios, excepciones) => {
+  const key = fmtDate(date);
+  const base = horarios[date.getDay()] || { abierto: false, texto: "" };
+  if (excepciones && key in excepciones) {
+    const abierto = excepciones[key];
+    return { abierto, texto: abierto ? (base.texto || "Horario especial") : "" };
+  }
+  return { abierto: base.abierto, texto: base.texto };
+};
+
+const getHorario = (horarios, excepciones) => {
+  const estado = getEstadoDia(new Date(), horarios, excepciones);
+  if (!estado.abierto) return null;
+  return estado.texto || null;
 };
 
 const getWeekLabel = (dateStr) => {
