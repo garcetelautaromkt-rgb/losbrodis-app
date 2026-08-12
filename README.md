@@ -2,6 +2,12 @@
 
 App de gestión para Los Brodis: ventas, gastos, stock, punto de equilibrio y cierre de caja, con integración a Google Sheets vía Google Forms.
 
+> Este repositorio también incluye otras dos versiones de la app:
+> - [`backend/`](backend) + [`mobile/`](mobile): versión CRM/ERP completa con backend en Node.js/Express + PostgreSQL y app móvil Flutter (emprendimientos, compras, insumos, recetas y costos, productos, ventas, facturación, caja, marketing, logística).
+> - [`foodtruck-app/`](foodtruck-app): app web offline-first (React + IndexedDB, sin backend) pensada para envolverse con Capacitor y generar un APK — para foodtrucks, ventas por WhatsApp/Instagram y cocinas caseras. Módulos: catálogo con recetas, insumos/inventario, ventas, clientes, gastos, resumen y organización.
+>
+> Ver el README de cada carpeta para instrucciones de instalación.
+
 ## 🚀 Cómo subirlo a Vercel (gratis, sin saber programar)
 
 ### Opción A: arrastrando la carpeta (la más simple)
