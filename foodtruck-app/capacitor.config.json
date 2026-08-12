@@ -1,0 +1,9 @@
+{
+  "appId": "com.losbrodis.foodtruckpos",
+  "appName": "POS Foodtruck",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
