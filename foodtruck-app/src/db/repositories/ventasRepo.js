@@ -3,7 +3,8 @@ import { generarId } from '../../utils/id';
 import { listarPlatos } from './platosRepo';
 import { listarCombos } from './combosRepo';
 import { ajustarStock } from './insumosRepo';
-import { totalPagado } from './clientesRepo';
+import { totalPagado, listarTodosLosPagos } from './clientesRepo';
+import { estaEnRango } from '../../utils/fechas';
 
 const STORE = 'ventas';
 
@@ -139,4 +140,64 @@ export async function saldoFiado(clienteId) {
     .filter((v) => v.tipoPago === 'fiado' && !v.pagada)
     .reduce((acc, v) => acc + Number(v.total), 0);
   return Math.max(0, fiadoImpago - pagado);
+}
+
+/**
+ * Resumen de todos los clientes de una sola pasada (deuda, última compra,
+ * cuánto compró en total). Se hace así en vez de llamar saldoFiado() por
+ * cliente para no disparar dos consultas por cada uno en la lista.
+ * Devuelve un Map clienteId -> resumen.
+ */
+export async function resumenDeClientes() {
+  const [ventas, pagos] = await Promise.all([getAll(STORE), listarTodosLosPagos()]);
+  const mapa = new Map();
+
+  const inicializar = (clienteId) => {
+    if (!mapa.has(clienteId)) {
+      mapa.set(clienteId, { deuda: 0, ultimaCompra: null, cantidadCompras: 0, totalComprado: 0 });
+    }
+    return mapa.get(clienteId);
+  };
+
+  ventas.forEach((venta) => {
+    if (!venta.clienteId) return;
+    const resumen = inicializar(venta.clienteId);
+    resumen.cantidadCompras += 1;
+    resumen.totalComprado += Number(venta.total);
+    if (venta.tipoPago === 'fiado' && !venta.pagada) {
+      resumen.deuda += Number(venta.total);
+    }
+    if (!resumen.ultimaCompra || new Date(venta.fecha) > new Date(resumen.ultimaCompra)) {
+      resumen.ultimaCompra = venta.fecha;
+    }
+  });
+
+  pagos.forEach((pago) => {
+    const resumen = inicializar(pago.clienteId);
+    resumen.deuda -= Number(pago.monto);
+  });
+
+  mapa.forEach((resumen) => {
+    resumen.deuda = Math.max(0, resumen.deuda);
+  });
+
+  return mapa;
+}
+
+/** Totales de ventas de un período, para el resumen de Inicio. */
+export async function totalesDeVentas({ desde, hasta } = {}) {
+  const ventas = await getAll(STORE);
+  const delPeriodo = ventas.filter((v) => estaEnRango(v.fecha, { desde, hasta }));
+
+  return delPeriodo.reduce(
+    (acc, venta) => {
+      const total = Number(venta.total);
+      acc.total += total;
+      acc.cantidad += 1;
+      if (venta.tipoPago === 'fiado' && !venta.pagada) acc.fiadoPendiente += total;
+      else acc.cobrado += total;
+      return acc;
+    },
+    { total: 0, cantidad: 0, cobrado: 0, fiadoPendiente: 0 }
+  );
 }

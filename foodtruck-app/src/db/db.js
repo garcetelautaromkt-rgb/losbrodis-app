@@ -3,7 +3,7 @@
 // arriba de las funciones genéricas de acá: getAll / getById / put / remove.
 
 const DB_NAME = 'foodtruck_pos';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 // Definición de todos los "object stores" (tablas) que va a tener la app.
 // Se agregan acá a medida que se construye cada módulo; si en el futuro se
@@ -41,6 +41,18 @@ const STORE_CONFIG = {
   pagosCliente: {
     keyPath: 'id',
     indexes: [{ name: 'clienteId', keyPath: 'clienteId' }],
+  },
+  gastos: {
+    keyPath: 'id',
+    indexes: [{ name: 'fecha', keyPath: 'fecha' }],
+  },
+  tareas: {
+    keyPath: 'id',
+    indexes: [{ name: 'fecha', keyPath: 'fecha' }],
+  },
+  publicaciones: {
+    keyPath: 'id',
+    indexes: [{ name: 'fecha', keyPath: 'fecha' }],
   },
 };
 

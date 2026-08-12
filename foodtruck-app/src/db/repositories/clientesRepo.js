@@ -54,6 +54,12 @@ export async function listarPagos(clienteId) {
   return pagos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 }
 
+/** Todos los pagos de todos los clientes, para armar el resumen de deudas
+ *  de una sola pasada en vez de consultar cliente por cliente. */
+export function listarTodosLosPagos() {
+  return getAll(STORE_PAGOS);
+}
+
 export async function totalPagado(clienteId) {
   const pagos = await listarPagos(clienteId);
   return pagos.reduce((total, p) => total + Number(p.monto), 0);

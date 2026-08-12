@@ -46,12 +46,12 @@ npx cap open android     # abre Android Studio para generar el APK/AAB
 | 1 | **Catálogo / Menú** — platos, combos, receta de insumos, foto opcional | ✅ Construido |
 | 2 | **Insumos / Inventario** — stock, mínimos, alerta visual, mermas con motivo | ✅ Construido |
 | 3 | **Ventas** — grid de venta rápida, carrito, fiado, nota para WhatsApp | ✅ Construido |
-| 4 | Clientes — historial, saldo fiado, recordatorio de inactivos | 🔸 Parcial (alta rápida + saldo fiado ya funcionan; falta la pantalla) |
-| 5 | Gastos — registro por monto/categoría/fecha | ⏳ Pendiente |
-| 6 | Resumen / Ganancia diaria — vista día/semana/mes | ⏳ Pendiente |
-| 7 | Organización — tareas y calendario de publicaciones | ⏳ Pendiente |
+| 4 | **Clientes** — historial, saldo fiado, pagos, recordatorio de inactivos | ✅ Construido |
+| 5 | **Gastos** — registro por monto/categoría/fecha con filtro por período | ✅ Construido |
+| 6 | **Resumen / Ganancia diaria** — vista día/semana/mes | ✅ Construido |
+| 7 | **Organización** — tareas y calendario semanal de publicaciones | ✅ Construido |
 
-Los módulos pendientes ya tienen su pantalla placeholder ("Próximamente") conectada a la navegación, para que integrarlos después sea directo.
+Los siete módulos están completos y funcionando offline.
 
 ## Estructura
 
@@ -65,6 +65,8 @@ src/
       combosRepo.js        CRUD de combos: platos combinados + precio especial
       ventasRepo.js        Alta de ventas, descuento de stock por receta, saldo fiado
       clientesRepo.js      CRUD de clientes + pagos a cuenta de la deuda
+      gastosRepo.js        CRUD de gastos por categoría con filtro por rango
+      organizacionRepo.js  Tareas y publicaciones del calendario
   components/
     BottomNav.jsx           Navegación inferior (Inicio/Vender/Catálogo/Clientes/Más)
     Header.jsx               Encabezado con back opcional para sub-vistas de "Más"
@@ -79,11 +81,15 @@ src/
     InsumoFormModal.jsx          Alta/edición + ajuste de stock + mermas + historial
     VenderPage.jsx               Grid de venta rápida + carrito
     CerrarVentaModal.jsx          Cobro (ahora/fiado), alta rápida de cliente, nota WhatsApp
-    InicioPage.jsx / ClientesPage.jsx / GastosPage.jsx / TareasPage.jsx
-                                  Placeholders de los módulos pendientes
+    ClientesPage.jsx              Lista con deuda e inactivos, filtros Todos/Deben/Contactar
+    ClienteDetalleModal.jsx       Cuenta corriente, historial, registro de pagos
+    GastosPage.jsx                Gastos por período con total y alta rápida
+    InicioPage.jsx                Resumen día/semana/mes + avisos accionables
+    TareasPage.jsx                Tabs Tareas (checkbox) y Calendario semanal
   utils/
     id.js, money.js, image.js   Helpers (UUID, formato $ARS, compresión de fotos)
     nota.js                      Arma la nota de pedido y la comparte por WhatsApp
+    fechas.js                    Rangos día/semana/mes y conversión de <input type="date">
   styles/index.css              Estilos mobile-first (botones grandes, safe-area, tema cálido)
 ```
 
@@ -111,6 +117,15 @@ src/
 
 // pagosCliente (pagos a cuenta de la deuda de fiado)
 { id, clienteId, monto, nota, fecha }
+
+// gastos
+{ id, monto, categoria: 'insumos'|'servicios'|'otros', fecha, descripcion, creadoEn }
+
+// tareas
+{ id, texto, fecha, hecha, creadoEn }
+
+// publicaciones (calendario semanal)
+{ id, texto, fecha, plataforma, creadoEn }
 ```
 
 ### Cómo se descuenta el stock
@@ -119,10 +134,19 @@ Al cerrar una venta, `ventasRepo.crearVenta()` recorre lo vendido y arma un mapa
 
 Si el stock no alcanza, la venta **no se bloquea** —en un puesto no se le puede decir "esperá" a un cliente—: se muestra un aviso en la pantalla de cobro y el stock del insumo queda en cero.
 
-## Próximos pasos sugeridos
+### Cómo se calcula la deuda de un cliente
 
-1. **Clientes**: la pantalla del módulo. El store `clientes`, el alta rápida y `ventasRepo.saldoFiado(clienteId)` ya existen; falta listar clientes con su deuda, historial de compras (`listarVentasDeCliente`), botón de registrar pago (`clientesRepo.registrarPago`) y marcar visualmente a quienes no compran hace X días.
-2. **Gastos**: store `gastos` simple, con filtro por fecha.
-3. **Inicio**: con `ventas` ya disponible, sumar el resumen del día/semana/mes en cuanto exista `gastos` para calcular la ganancia neta.
-4. **Organización**: stores `tareas` y `publicaciones`, sin integraciones externas.
-5. **Compartir en Capacitor**: reemplazar `navigator.share` por `@capacitor/share`, que es más confiable dentro del WebView de Android.
+`deuda = (ventas fiadas no saldadas) − (pagos a cuenta registrados)`, con piso en cero. La lista de clientes usa `resumenDeClientes()`, que carga todas las ventas y todos los pagos **una sola vez** y arma un `Map` con deuda, última compra y cantidad de compras por cliente — así la pantalla no dispara dos consultas por cada cliente de la lista.
+
+Un cliente se marca como "contactar" cuando pasaron 15 días o más desde su última compra (constante `DIAS_PARA_CONTACTAR` en `ClientesPage.jsx`).
+
+### Fechas y zona horaria
+
+Todo se calcula en hora local: un puesto piensa en "lo que vendí hoy", no en UTC. Ojo con un detalle: `new Date('2026-08-12')` se interpreta como UTC y en Argentina (UTC−3) termina cayendo el día anterior. Por eso los valores de `<input type="date">` se convierten con `fechaDesdeInput()` en `utils/fechas.js`, que arma la fecha a mano. Si agregás campos de fecha nuevos, usá ese helper.
+
+## Ideas para más adelante
+
+- **Compartir en Capacitor**: reemplazar `navigator.share` por `@capacitor/share`, más confiable dentro del WebView de Android.
+- **Respaldo de datos**: los datos viven solo en el dispositivo. Un export/import a JSON (o sincronización opcional) evitaría perder todo si se borran los datos de la app o se cambia de celular.
+- **Cierre de caja diario**: hoy el resumen se calcula en vivo por período; un cierre guardado daría un registro histórico congelado.
+- **Costo por plato**: con el `costoUnitario` de los insumos ya cargado, se puede calcular cuánto cuesta producir cada plato y mostrar el margen real de cada venta.

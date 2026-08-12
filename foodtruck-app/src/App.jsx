@@ -20,7 +20,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <main className="app-main">
-        {vista === 'inicio' && <InicioPage />}
+        {vista === 'inicio' && <InicioPage onIr={setVista} />}
         {vista === 'vender' && <VenderPage />}
         {vista === 'catalogo' && <CatalogoPage />}
         {vista === 'clientes' && <ClientesPage />}
