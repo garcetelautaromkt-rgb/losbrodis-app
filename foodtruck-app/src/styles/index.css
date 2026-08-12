@@ -320,8 +320,14 @@ button {
 }
 
 .modal-sheet__body {
-  padding: 8px 16px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  padding: 8px 16px 20px;
   overflow-y: auto;
+}
+
+.modal-sheet__footer {
+  padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  border-top: 1px solid var(--color-borde);
+  background: var(--color-superficie);
 }
 
 /* ------------------------------------------------------------------ */
@@ -696,4 +702,290 @@ button {
   font-size: 0.75rem;
   color: var(--color-texto-suave);
   width: 32px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Vender — grid de venta rápida y carrito                             */
+/* ------------------------------------------------------------------ */
+
+.page__content--venta {
+  padding-bottom: 96px; /* deja lugar para la barra del carrito */
+}
+
+.chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chips button {
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--color-borde);
+  background: var(--color-superficie);
+  color: var(--color-texto-suave);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.chips button.is-active {
+  background: var(--color-primario);
+  border-color: var(--color-primario);
+  color: #fff;
+}
+
+.grid-venta {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.venta-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 96px;
+  padding: 14px;
+  border-radius: var(--radio);
+  border: 2px solid transparent;
+  background: var(--color-superficie);
+  box-shadow: var(--sombra);
+  text-align: left;
+}
+
+.venta-card:active {
+  transform: scale(0.97);
+}
+
+.venta-card.is-en-carrito {
+  border-color: var(--color-primario);
+}
+
+.venta-card__nombre {
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.venta-card__precio {
+  font-weight: 800;
+  color: var(--color-primario-oscuro);
+}
+
+.venta-card__badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--color-primario);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.barra-carrito {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--nav-alto) + env(safe-area-inset-bottom, 0px));
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--color-superficie);
+  border-top: 1px solid var(--color-borde);
+  box-shadow: 0 -4px 14px rgba(33, 26, 20, 0.08);
+  z-index: 18;
+}
+
+.barra-carrito__resumen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+}
+
+.barra-carrito__resumen strong {
+  font-size: 1.15rem;
+}
+
+.barra-carrito__resumen small {
+  color: var(--color-texto-suave);
+  font-size: 0.75rem;
+}
+
+.barra-carrito__cobrar {
+  width: auto;
+  min-width: 130px;
+}
+
+.lista-carrito {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.carrito-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.carrito-item__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.carrito-item__info small {
+  color: var(--color-texto-suave);
+  font-size: 0.78rem;
+}
+
+.carrito-item__acciones {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.carrito-item__acciones button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--color-borde);
+  background: var(--color-superficie);
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.carrito-item__acciones span {
+  min-width: 22px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.carrito-item__subtotal {
+  min-width: 74px;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* Cierre de venta                                                     */
+/* ------------------------------------------------------------------ */
+
+.opciones-pago {
+  display: flex;
+  gap: 8px;
+}
+
+.opcion-pago {
+  flex: 1;
+  min-height: 48px;
+  border-radius: var(--radio-chico);
+  border: 1px solid var(--color-borde);
+  background: var(--color-superficie);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.opcion-pago.is-active {
+  background: var(--color-primario-suave);
+  border-color: var(--color-primario);
+  color: var(--color-primario-oscuro);
+}
+
+.alta-rapida {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radio-chico);
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+}
+
+.aviso-stock {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radio-chico);
+  background: var(--color-alerta-suave);
+  color: var(--color-alerta);
+}
+
+.aviso-stock div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aviso-stock small {
+  color: var(--color-texto);
+  font-size: 0.8rem;
+}
+
+.venta-ok {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 0 4px;
+}
+
+.venta-ok__emoji {
+  font-size: 2.4rem;
+}
+
+.venta-ok strong {
+  font-size: 1.5rem;
+}
+
+.venta-ok small {
+  color: var(--color-texto-suave);
+}
+
+.nota-preview {
+  margin: 0;
+  padding: 14px;
+  border-radius: var(--radio-chico);
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow-y: auto;
 }
